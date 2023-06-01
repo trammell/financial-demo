@@ -56,6 +56,48 @@ FORM_DESCRIPTION = {
 }
 
 
+class ActionLLMCallout(Action):
+    def name(self) -> str:
+        return "action_llm_callout:"
+
+    async def run(
+        self,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: Dict[Text, Any],
+    ) -> List[Dict]:
+        """Call LLM with the tracker conversation."""
+        import openai
+        from openai import ChatCompletion
+
+        if "OPENAI_API_KEY" not in os.environ:
+            dispatcher.utter_message(text="openai not configured")
+            return []
+
+        # construct message context
+        messages = []
+        messages.append(
+            {
+                "role": "system",
+                "content": "You are a helpful investment assistant.",
+            }
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": f"""Say something clever about {tracker.latest_message.get("text","")}.""",
+            }
+        )
+
+        # don't take no for an answer
+        while True:
+            try:
+                comp = ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+                return comp.choices[0].message["content"]
+            except openai.error.APIError:
+                time.sleep(0.5)
+
+
 class ActionPayCC(Action):
     """Pay credit card."""
 
